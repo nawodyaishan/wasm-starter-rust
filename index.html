@@ -4,30 +4,127 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dynamic Wasm Example</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 600px;
+            margin: 2em auto;
+            line-height: 1.5;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.8em;
+        }
+
+        p {
+            margin-bottom: 1em;
+        }
+
+        label {
+            display: inline-block;
+            margin-bottom: 0.5em;
+            font-weight: bold;
+        }
+
+        input[type="number"] {
+            width: 100px;
+            padding: 0.5em;
+            margin-right: 0.5em;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-align: right;
+        }
+
+        button {
+            padding: 0.5em 1em;
+            background: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s ease, transform 0.1s ease;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        #result {
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .loading {
+            font-style: italic;
+            color: #666;
+            margin-bottom: 1em;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .input-group {
+            margin-bottom: 1em;
+        }
+    </style>
 </head>
 <body>
 <h1>Dynamic Calculation with WebAssembly</h1>
-<p>Enter a number, click "Calculate", and we'll double it using Rust + WebAssembly!</p>
-<input type="number" id="number-input" value="5">
-<button id="calc-button">Calculate</button>
+<p>This page demonstrates calling a Rust-compiled WebAssembly function from JavaScript.
+    Enter a number, click "Calculate," and we’ll double it for you!</p>
+
+<div id="loading-message" class="loading">Loading WebAssembly module, please wait...</div>
+
+<div class="input-group">
+    <label for="number-input">Number to double:</label><br>
+    <input type="number" id="number-input" value="5" aria-label="Input number">
+    <button id="calc-button" disabled>Calculate</button>
+</div>
+
 <p>Result: <span id="result">—</span></p>
 
 <script type="module">
     import init, {double_value} from './pkg/dynamic_wasm.js';
 
     async function run() {
-        await init(); // Initialize the Wasm module
-
+        const loadingMessage = document.getElementById('loading-message');
         const inputEl = document.getElementById('number-input');
         const resultEl = document.getElementById('result');
         const buttonEl = document.getElementById('calc-button');
 
+        // Keep button disabled until Wasm is ready
+        buttonEl.disabled = true;
+
+        // Initialize the Wasm module
+        try {
+            await init();
+        } catch (err) {
+            loadingMessage.textContent = "Error loading WebAssembly module.";
+            console.error(err);
+            return;
+        }
+
+        // Hide loading message, enable the button
+        loadingMessage.classList.add('hidden');
+        buttonEl.disabled = false;
+
         buttonEl.addEventListener('click', () => {
-            // Get the number from the input
-            const val = parseInt(inputEl.value, 10);
-            // Call the Rust function through Wasm
+            const valStr = inputEl.value.trim();
+            // Validate input
+            if (!valStr || isNaN(Number(valStr))) {
+                resultEl.textContent = 'Invalid input. Please enter a number.';
+                return;
+            }
+
+            const val = parseInt(valStr, 10);
             const doubled = double_value(val);
-            // Update the result on the page
             resultEl.textContent = doubled;
         });
     }
